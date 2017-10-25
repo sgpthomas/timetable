@@ -36,11 +36,8 @@ impl App {
         }
     }
 
-    fn make_circle(&self) -> Vec<[f64; 4]> {
+    fn make_circle(&self, inc: f64, radius: f64, offset: f64) -> Vec<[f64; 4]> {
         let mut ret = Vec::new();
-        let inc = 6.28 / (self.npoints as f64);
-        let radius = 600.0;
-        let offset = 700.0;
         for i in 0..(self.npoints) {
             let i = i as f64;
             ret.push([radius * f64::sin(i * inc) + offset, radius * f64::cos(i * inc) + offset, 15.0, 15.0]);
@@ -52,7 +49,7 @@ impl App {
         let mut ret = Vec::new();
         for a in 1..self.npoints {
             // a -> (a * factor) % n
-            ret.push((a, (f64::round((a as f64) * self.factor) as u32) % self.npoints));
+            ret.push((a, (f64::round((a as f64) * (self.factor)) as u32) % self.npoints));
         }
         self.lines = ret;
     }
@@ -60,18 +57,27 @@ impl App {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
-        self.circle = self.make_circle();
+        let inc = 6.28 / (self.npoints as f64);
+        let radius = 700.0;
+        let offset = 800.0;
+        self.circle = self.make_circle(inc, radius, offset);
         let circle_points = &self.circle;
         let lines = &self.lines;
+        let factor = &self.factor;
 
         self.canvas.draw(args.viewport(), |c, gl| {
             // Clear the screen.
             clear(App::WHITE, gl);
 
+            // render points
             for p in circle_points {
                 ellipse(App::BLACK, *p, c.transform, gl);
             }
 
+            // draw cursor
+            ellipse(App::BLUE, [(radius + 20.) * f64::sin(factor * inc) + offset, (radius + 20.) * f64::cos(factor * inc) + offset, 15.0, 15.0], c.transform, gl);
+
+            // render lines
             for pair in lines {
                 let p1 = circle_points[pair.0 as usize];
                 let p2 = circle_points[pair.1 as usize];
@@ -82,9 +88,8 @@ impl App {
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        // Rotate 2 radians per second.
-        // self.rotation += 2.0 * args.dt;
         self.factor += self.rate * (args.dt);
+        self.factor %= self.npoints as f64;
         self.make_lines();
     }
 }
@@ -103,7 +108,7 @@ fn main() {
         .unwrap();
 
     // Create a new game and run it.
-    let mut app = App::new(GlGraphics::new(opengl), 2.0, 200);
+    let mut app = App::new(GlGraphics::new(opengl), 1.0, 200);
 
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(&mut window) {
